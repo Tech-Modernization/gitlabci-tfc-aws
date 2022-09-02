@@ -1,0 +1,13 @@
+{
+  "data": {
+    "type": "vars",
+    "id": "tfc_variable_id",
+    "attributes": {
+      "key": "tfc_varaiable_key",
+      "value": "tfc_varaiable_value",
+      "category": "tfc_varaiable_category",
+      "hcl": "tfc_varaiable_hcl",
+      "sensitive": "tfc_varaiable_sensitive"
+    }
+  }
+}

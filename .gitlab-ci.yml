@@ -1,0 +1,106 @@
+# GitLab CI Terraform Cloud Deployment
+
+stages:
+ - TFC_WS_Setup
+ - TFC_WS_Variables_Setup
+ - TFC_WS_Code_Upload
+ - TFC_CODE_APPLY
+
+# Get Terraform Cloud Workspace ID if it exists or create new Terraform Cloud Workspace
+create_or_get_tfc_workspace:
+  stage: TFC_WS_Setup
+  script:
+  - >
+    echo "TFC_HTTPS_URL=$TFC_HTTPS_URL";
+    echo "TFC_ORG=$TFC_ORG";
+    echo "TFC_WS_NAME=$TFC_WS_NAME";
+  # check if workspace already exists
+  - >
+    curl -s --header "Authorization: Bearer $TFC_TOKEN" --header "Content-Type: application/vnd.api+json" "$TFC_HTTPS_URL/api/v2/organizations/$TFC_ORG/workspaces/$TFC_WS_NAME" | jq -r .data.id > workspace_id;
+    export workspace_id=$(cat workspace_id);
+    echo "Workspace ID $workspace_id";
+  # create workspace if it doesn't exist with yaml multiline block
+  - >
+    if [ "$workspace_id" == null ]; then
+      sed "s/ws_name/$TFC_WS_NAME/" < templates/workspace.json.template > workspace.json
+      curl --header "Authorization: Bearer $TFC_TOKEN" --header "Content-Type: application/vnd.api+json" --request POST --data @workspace.json "$TFC_HTTPS_URL/api/v2/organizations/$TFC_ORG/workspaces" | jq -r .data.id > workspace_id
+      echo "Workspace ID $workspace_id"
+    fi
+  tags:
+    - $GITLAB_RUNNER
+
+# Set Cloud Credentials as Terraform Cloud Workspace Variables
+tfc_workspace_variables:
+  stage: TFC_WS_Variables_Setup
+  script:
+  # Get TFC workspace ID
+  - >
+    curl -s --header "Authorization: Bearer $TFC_TOKEN" --header "Content-Type: application/vnd.api+json" "$TFC_HTTPS_URL/api/v2/organizations/$TFC_ORG/workspaces/$TFC_WS_NAME" | jq -r .data.id > workspace_id;
+    export workspace_id=$(cat workspace_id);
+  # check if the aws_account variable already exists with yaml multiline block
+  - >
+    curl --header "Authorization: Bearer $TFC_TOKEN" --header "Content-Type: application/vnd.api+json" "$TFC_HTTPS_URL/api/v2/workspaces/$workspace_id/vars" | jq -r '.data[] | select(.attributes.key == "aws_account")' > variable_id_object;
+    export variable_id_object=$(cat variable_id_object);
+  # Get variable ID only if returned variable_id_object is not null
+  - >
+    if [ ! -z "$variable_id_object" ]; then 
+      echo "$variable_id_object" | jq -r .id > variable_id
+      export variable_id=$(cat variable_id)
+    fi
+  # create variable if it doesn't exist with yaml multiline block or update variable (This step is required if AWS credentials are updated in GitLab)
+  - >
+    echo -e "\nvariable ID $variable_id";
+    if [ -z "$variable_id" ]; then
+      sed -e "s/tfc_varaiable_key/aws_account/" -e 's%tfc_varaiable_value%{access_key=\\"'"$AWS_ACCESS_KEY_ID"'\\", secret_key=\\"'"$AWS_SECRET_ACCESS_KEY"'\\", token=\\"'"$AWS_SESSION_TOKEN"'\\", region=\\"'"$AWS_DEFAULT_REGION"'\\"}%' -e "s/tfc_varaiable_category/terraform/" -e "s/tfc_varaiable_sensitive/true/" -e "s/tfc_varaiable_hcl/true/" -e "s/tfc_varaiable_ws_id/$workspace_id/" < templates/variable.json.template > tfc_variable.json
+      curl --header "Authorization: Bearer $TFC_TOKEN" --header "Content-Type: application/vnd.api+json" --data @tfc_variable.json "$TFC_HTTPS_URL/api/v2/workspaces/$workspace_id/vars"
+      echo -e "\nNew variable created"
+    else
+      sed -e "s/tfc_variable_id/$variable_id/" -e "s/tfc_varaiable_key/aws_account/" -e 's%tfc_varaiable_value%{access_key=\\"'"$AWS_ACCESS_KEY_ID"'\\", secret_key=\\"'"$AWS_SECRET_ACCESS_KEY"'\\", token=\\"'"$AWS_SESSION_TOKEN"'\\", region=\\"'"$AWS_DEFAULT_REGION"'\\"}%' -e "s/tfc_varaiable_category/terraform/" -e "s/tfc_varaiable_sensitive/true/" -e "s/tfc_varaiable_hcl/true/" -e "s/tfc_varaiable_ws_id/$workspace_id/" < templates/updatevariable.json.template > tfc_updatevariable.json
+      curl --header "Authorization: Bearer $TFC_TOKEN" --header "Content-Type: application/vnd.api+json" --request PATCH --data @tfc_updatevariable.json "$TFC_HTTPS_URL/api/v2/workspaces/$workspace_id/vars/$variable_id"
+      echo -e "\nExisting variable updated"
+    fi
+  tags:
+    - $GITLAB_RUNNER
+
+tfc_workspace_code_upload:
+  stage: TFC_WS_Code_Upload
+  script:
+  # Get TFC workspace ID
+  - >
+    curl -s --header "Authorization: Bearer $TFC_TOKEN" --header "Content-Type: application/vnd.api+json" "$TFC_HTTPS_URL/api/v2/organizations/$TFC_ORG/workspaces/$TFC_WS_NAME" | jq -r .data.id > workspace_id;
+    export workspace_id=$(cat workspace_id);
+    echo "Workspace ID $workspace_id";
+  # Create configuration version 
+  - > 
+    echo "Creating configuration version for to upload code to Terraform workspace";
+    curl -s --header "Authorization: Bearer $TFC_TOKEN" --header "Content-Type: application/vnd.api+json" --data @templates/configversion.json.template "$TFC_HTTPS_URL/api/v2/workspaces/$workspace_id/configuration-versions" > configuration_version_result;
+    export configuration_version_result=$(cat configuration_version_result);
+    config_version_id=$(echo $configuration_version_result | jq -r '.data.id');
+    upload_url=$(echo $configuration_version_result | jq -r '.data.attributes."upload-url"');
+    echo "Config Version ID $config_version_id";
+    echo "Upload URL $upload_url";
+  # Create tar file for the code
+  - >
+    tar -czf appcode.tar.gz *.tf;
+    curl -s --header "Content-Type: application/octet-stream" --request PUT --data-binary @appcode.tar.gz "$upload_url";
+  tags:
+    - $GITLAB_RUNNER
+
+tfc_apply:
+  stage: TFC_CODE_APPLY
+  script:
+  # Get TFC workspace ID
+  - >
+    curl -s --header "Authorization: Bearer $TFC_TOKEN" --header "Content-Type: application/vnd.api+json" "$TFC_HTTPS_URL/api/v2/organizations/$TFC_ORG/workspaces/$TFC_WS_NAME" | jq -r .data.id > workspace_id;
+    export workspace_id=$(cat workspace_id);
+    echo "Workspace ID $workspace_id";
+    sed "s/tfc_workspace_id/$workspace_id/" < templates/run.json.template  > run.json;
+    curl --header "Authorization: Bearer $TFC_TOKEN" --header "Content-Type: application/vnd.api+json" --data @run.json "$TFC_HTTPS_URL/api/v2/runs" > run_result.txt;
+    run_id=$(cat run_result.txt | jq -r .data.id);
+    echo "Run ID $run_id";
+    curl --header "Authorization: Bearer $TFC_TOKEN" --header "Content-Type: application/vnd.api+json" "$TFC_HTTPS_URL/api/v2/runs/$run_id" > result.txt;
+    result=$(cat result.txt | jq -r .data.attributes.status);
+    echo "Terraform Cloud Run status $result";
+    echo "Navigate to $TFC_HTTPS_URL/app/$TFC_ORG/workspaces/$TFC_WS_NAME/runs/$run_id to apply changes after verifying Terraform Plan";
+  tags:
+      - $GITLAB_RUNNER
