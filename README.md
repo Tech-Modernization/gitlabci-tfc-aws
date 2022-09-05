@@ -41,6 +41,7 @@ Stages involved in GitLab CI:
 ## GitLab project setup
 - Create new blank project e.g. gitlabci-tfc-aws
 - Create the following variables in Project -> Settings -> CI/CD -> Expand -> Add Variable
+    - AWS_ACCESS_KEY_ID: AWS Credential Value
     - AWS_DEFAULT_REGION: AWS Default region 
     - AWS_SECRET_ACCESS_KEY: AWS Credential Value
     - AWS_SESSION_TOKEN: AWS Credential Value

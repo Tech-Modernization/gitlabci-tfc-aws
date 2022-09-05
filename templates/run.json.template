@@ -1,7 +1,7 @@
 {
   "data": {
     "attributes": {
-      "is-destroy":false
+      "is-destroy": "tfc_run_destroy_value"
     },
     "type":"runs",
     "relationships": {

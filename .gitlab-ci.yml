@@ -5,6 +5,7 @@ stages:
  - TFC_WS_Variables_Setup
  - TFC_WS_Code_Upload
  - TFC_CODE_APPLY
+ - TFC_CODE_DESTROY
 
 # Get Terraform Cloud Workspace ID if it exists or create new Terraform Cloud Workspace
 create_or_get_tfc_workspace:
@@ -94,13 +95,33 @@ tfc_apply:
     curl -s --header "Authorization: Bearer $TFC_TOKEN" --header "Content-Type: application/vnd.api+json" "$TFC_HTTPS_URL/api/v2/organizations/$TFC_ORG/workspaces/$TFC_WS_NAME" | jq -r .data.id > workspace_id;
     export workspace_id=$(cat workspace_id);
     echo "Workspace ID $workspace_id";
-    sed "s/tfc_workspace_id/$workspace_id/" < templates/run.json.template  > run.json;
+    sed -e "s/tfc_workspace_id/$workspace_id/" -e "s/tfc_run_destroy_value/false/" < templates/run.json.template  > run.json;
     curl --header "Authorization: Bearer $TFC_TOKEN" --header "Content-Type: application/vnd.api+json" --data @run.json "$TFC_HTTPS_URL/api/v2/runs" > run_result.txt;
     run_id=$(cat run_result.txt | jq -r .data.id);
     echo "Run ID $run_id";
     curl --header "Authorization: Bearer $TFC_TOKEN" --header "Content-Type: application/vnd.api+json" "$TFC_HTTPS_URL/api/v2/runs/$run_id" > result.txt;
     result=$(cat result.txt | jq -r .data.attributes.status);
     echo "Terraform Cloud Run status $result";
-    echo "Navigate to $TFC_HTTPS_URL/app/$TFC_ORG/workspaces/$TFC_WS_NAME/runs/$run_id to apply changes after verifying Terraform Plan";
+    echo "Navigate to $TFC_HTTPS_URL/app/$TFC_ORG/workspaces/$TFC_WS_NAME/runs/$run_id to apply changes after verifying Terraform plan";
+  tags:
+      - $GITLAB_RUNNER
+
+tfc_destroy:
+  stage: TFC_CODE_DESTROY
+  when: manual
+  script:
+  # Get TFC workspace ID
+  - >
+    curl -s --header "Authorization: Bearer $TFC_TOKEN" --header "Content-Type: application/vnd.api+json" "$TFC_HTTPS_URL/api/v2/organizations/$TFC_ORG/workspaces/$TFC_WS_NAME" | jq -r .data.id > workspace_id;
+    export workspace_id=$(cat workspace_id);
+    echo "Workspace ID $workspace_id";
+    sed -e "s/tfc_workspace_id/$workspace_id/" -e "s/tfc_run_destroy_value/true/" < templates/run.json.template  > run.json;
+    curl --header "Authorization: Bearer $TFC_TOKEN" --header "Content-Type: application/vnd.api+json" --data @run.json "$TFC_HTTPS_URL/api/v2/runs" > run_result.txt;
+    run_id=$(cat run_result.txt | jq -r .data.id);
+    echo "Run ID $run_id";
+    curl --header "Authorization: Bearer $TFC_TOKEN" --header "Content-Type: application/vnd.api+json" "$TFC_HTTPS_URL/api/v2/runs/$run_id" > result.txt;
+    result=$(cat result.txt | jq -r .data.attributes.status);
+    echo "Terraform Cloud Run status $result";
+    echo "Navigate to $TFC_HTTPS_URL/app/$TFC_ORG/workspaces/$TFC_WS_NAME/runs/$run_id to apply changes after verifying Terraform destroy plan";
   tags:
       - $GITLAB_RUNNER
