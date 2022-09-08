@@ -1,17 +1,17 @@
 # GitLab CI, Terraform Cloud and AWS Integration
 
-- [GitLab CI, Terraform Cloud and AWS Integration](#gitlab-ci,-terraform-cloud-and-aws-integration)
+- [GitLab CI, Terraform Cloud and AWS Integration](#gitlab-ci-terraform-cloud-and-aws-integration)
   - [Introduction](#introduction)
   - [The Background](#the-background)
   - [Getting Started](#getting-started)
   - [Prerequisite](#prerequisite)
-  - [Terraform Cloud Setup](#terraform-cloud-setup)
-  - [GitLab Runner Setup](#gitlab-runner-setup)
-  - [GitLab pipeline setup](#gitlab-pipeline-setup)
-  - [GitLab project setup](#gitlab-project-setup)
+  - [Terraform Cloud Setup](#terraform-cloudsetup)
+  - [GitLab Runner Setup](#gitlab-runnersetup)
+  - [GitLab Pipeline Setup](#gitlab-pipelinesetup)
+  - [GitLab Project Setup](#gitlab-projectsetup)
   - [Terraform Cloud Workspace Creation](#terraform-cloud-workspace-creation)
-  - [Terraform Cloud Workspace Variable Setup](#terraform-cloud-workspace-variable-setup)
-  - [Terraform Cloud Workspace Code Upload](#terraform-cloud-workspace-code-upload)
+  - [Terraform Cloud Workspace Variable Setup](#terraform-cloud-workspace-variablesetup)
+  - [Terraform Cloud Workspace Code Upload](#terraform-cloud-workspace-codeupload)
   - [Terraform Cloud Workspace Code Execution](#terraform-cloud-workspace-code-execution)
   - [Terraform Cloud Workspace Code Destroy Execution](#terraform-cloud-workspace-code-destroy-execution)
 
@@ -73,7 +73,7 @@ The following commands are used to setup Amazon Linux EC2 instance as GitLab run
 On successful execution, GitLab runner will be registered as shown
 <p align="center"><img align="center" src="images/gitlabrunner.png"></p>
 
-## GitLab pipeline setup
+## GitLab Pipeline Setup
 
 **Stages involved in GitLab CI:**
 
@@ -85,7 +85,7 @@ On successful execution, GitLab runner will be registered as shown
 
 <p align="center"><img align="center" src="images/gitlabstages.png"></p>
 
-## GitLab project setup
+## GitLab Project Setup
 
 **Step 1:** Create new blank project e.g. gitlabci-tfc-aws
 
