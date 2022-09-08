@@ -1,5 +1,20 @@
 # GitLab CI, Terraform Cloud and AWS Integration
 
+- [GitLab CI, Terraform Cloud and AWS Integration](#gitlab-ci,-terraform-cloud-and-aws-integration)
+  - [Introduction](#introduction)
+  - [The Background](#the-background)
+  - [Getting Started](#getting-started)
+  - [Prerequisite](#prerequisite)
+  - [Terraform Cloud Setup](#terraform-cloud-setup)
+  - [GitLab Runner Setup](#gitlab-runner-setup)
+  - [GitLab pipeline setup](#gitlab-pipeline-setup)
+  - [GitLab project setup](#gitlab-project-setup)
+  - [Terraform Cloud Workspace Creation](#terraform-cloud-workspace-creation)
+  - [Terraform Cloud Workspace Variable Setup](#terraform-cloud-workspace-variable-setup)
+  - [Terraform Cloud Workspace Code Upload](#terraform-cloud-workspace-code-upload)
+  - [Terraform Cloud Workspace Code Execution](#terraform-cloud-workspace-code-execution)
+  - [Terraform Cloud Workspace Code Destroy Execution](#terraform-cloud-workspace-code-destroy-execution)
+
 ## Introduction
 
 Documentation for Automation, IaC, Terraform, GitLab, CICD is everywhere. This article will cover steps to integrate GitLab CI, Terraform Cloud and AWS by creating an AWS EC2 instance with Terraform code and GitLab CI. Terraform code can be extended to include additional components as required.
@@ -33,13 +48,16 @@ This article can be used as proof of concept for any organization who likes to b
 ## Terraform Cloud Setup
 
 - Create a new Organization (This value is used as GitLab variable "TFC_ORG" which is explained in the upcoming section)
+<p align="center"><img align="center" src="images/tfcorganization.png"></p>
 - Create Terraform Cloud API Token by navigating Terraform Cloud -> (Select your Organization) -> Settings -> Organization settings -> Teams -> Team API Token -> Create a team token (Copy this token value in a safe manner and this token is used as GitLab variable "TFC_TOKEN" which is explained in the upcoming section)
+<p align="center"><img align="center" src="images/tfctoken.png"></p>
 
 ## GitLab Runner Setup
 
 GitLab runner is required to execute jobs defined in GitLab stages. 
 
 GitLab Registration Token is required to register a GitLab runner which can be retrieved by navigating to GitLab Menu -> Groups -> (Select your Group) -> CI/CD -> "Register a group runner"
+<p align="center"><img align="center" src="images/gitlabtokenregistration.png"></p>
 
 The following commands are used to setup Amazon Linux EC2 instance as GitLab runner
 - **curl -L "https://packages.gitlab.com/install/repositories/runner/gitlab-runner/script.rpm.sh" | sudo bash**
@@ -53,6 +71,7 @@ The following commands are used to setup Amazon Linux EC2 instance as GitLab run
     - Enter an executor: kubernetes, custom, parallels, shell, virtualbox, docker-ssh+machine, docker, docker-ssh, ssh, docker+machine: **shell**
 
 On successful execution, GitLab runner will be registered as shown
+<p align="center"><img align="center" src="images/gitlabrunner.png"></p>
 
 ## GitLab pipeline setup
 
@@ -64,11 +83,16 @@ On successful execution, GitLab runner will be registered as shown
 - Execute Terraform Plan
 - Destroy Terraform Execution (Cleanup)
 
+<p align="center"><img align="center" src="images/gitlabstages.png"></p>
+
 ## GitLab project setup
 
 **Step 1:** Create new blank project e.g. gitlabci-tfc-aws
 
 **Step 2:** Create the following variables in Project -> Settings -> CI/CD -> Expand -> Add Variable
+
+<p align="center"><img align="center" src="images/gitlabvariables.png"></p>
+
 - AWS_ACCESS_KEY_ID: AWS Credential Value 
 - AWS_DEFAULT_REGION: AWS Default region
 - AWS_SECRET_ACCESS_KEY: AWS Credential Value
@@ -87,18 +111,33 @@ On successful execution, GitLab runner will be registered as shown
 
 On successful execution of GitLab stage "TFC_WS_Setup", Terraform Cloud workspace with the name provided in TFC_WS_NAME (GitLab variables) will be created in your Terraform Cloud Organization.
 
+<p align="center"><img align="center" src="images/tfcwscreation.png"></p>
+
 ## Terraform Cloud Workspace Variable Setup
 On successful execution of GitLab stage "TFC_WS_Variables_Setup", aws_account with value provided in GitLab variables will be created in Terraform Cloud Workspace.
 
 "aws_account" variable is set to be sensitive, so it cannot be modified at Terraform Cloud Workspace. "aws_account" variable is set with the format as {access_key="<<aws_access_key_id value>>", secret_key="<<aws_secret_access_key value>>", token="<<aws_session_token value>>" region="ap-southeast-2"} where the values of AWS credentials are substituted with GitLab variables defined in the GitLab Project Setup.
+
+<p align="center"><img align="center" src="images/tfcwsvariables.png"></p>
 
 ## Terraform Cloud Workspace Code Upload
 On successful execution of GitLab stage "TFC_WS_Code_Upload", all *.tf files will be uploaded as configuration version to Terraform Cloud workspace.
 
 ## Terraform Cloud Workspace Code Execution
 On successful execution of GitLab stage "TFC_CODE_APPLY", Terraform run will be triggered in Terraform Cloud Workspace. 
+
+<p align="center"><img align="center" src="images/tfcplan.png"></p>
+
 Terraform "Confirm & Apply" can be executed once after confirming Terraform plan.
+
+<p align="center"><img align="center" src="images/tfcapply.png"></p>
 
 
 ## Terraform Cloud Workspace Code Destroy Execution
-GitLab stage "TFC_CODE_DESTROY" is set as manual step in GitLab CI and it can be executed manually to destroy the infrastructure created in the previous stage.Terraform "Confirm & Apply" can be executed once after confirming Terraform plan to destroy.
+GitLab stage "TFC_CODE_DESTROY" is set as manual step in GitLab CI and it can be executed manually to destroy the infrastructure created in the previous stage.
+
+<p align="center"><img align="center" src="images/tfcdestroyplan.png"></p>
+
+Terraform "Confirm & Apply" can be executed once after confirming Terraform plan to destroy.
+
+<p align="center"><img align="center" src="images/tfcdestroyapply.png"></p>
